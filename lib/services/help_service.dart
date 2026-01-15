@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class HelpService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -28,12 +29,17 @@ class HelpService {
       );
 
       // 3. Create data payload
+      final prefs = await SharedPreferences.getInstance();
+      final userName = prefs.getString('user_name') ?? 'Unknown User';
+      final userEmail = prefs.getString('user_email') ?? 'Unknown Email';
+
       final data = {
         'latitude': position.latitude,
         'longitude': position.longitude,
         'timestamp': FieldValue.serverTimestamp(),
         'status': 'pending',
-        // Add device identifier if needed, for now omitted as per plan
+        'user_name': userName,
+        'user_email': userEmail,
       };
 
       // 4. Send to Firestore

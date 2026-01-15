@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:sachi_app/home_page.dart';
 
 import 'package:sachi_app/services/arcgis_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:sachi_app/screens/onboarding_screen.dart';
 
 import 'package:firebase_core/firebase_core.dart';
 
@@ -10,11 +12,16 @@ void main() async {
   // Initialize ArcGIS with API Key globally
   ArcGISService.initialize();
   await Firebase.initializeApp();
-  runApp(const MyApp());
+
+  final prefs = await SharedPreferences.getInstance();
+  final hasUser = prefs.containsKey('user_name') && prefs.containsKey('user_email');
+
+  runApp(MyApp(showOnboarding: !hasUser));
 }
 
 class MyApp extends StatefulWidget {
-  const MyApp({super.key});
+  final bool showOnboarding;
+  const MyApp({super.key, required this.showOnboarding});
 
   @override
   State<MyApp> createState() => _MyAppState();
@@ -39,7 +46,7 @@ class _MyAppState extends State<MyApp> {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
       ),
-      home: const HomePage(),
+      home: widget.showOnboarding ? const OnboardingScreen() : const HomePage(),
     );
   }
 }
