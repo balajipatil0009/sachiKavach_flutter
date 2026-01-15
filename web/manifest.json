@@ -1,6 +1,6 @@
 {
-    "name": "sachi_app",
-    "short_name": "sachi_app",
+    "name": "Sachi Kavach",
+    "short_name": "Sachi Kavach",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

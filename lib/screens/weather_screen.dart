@@ -37,7 +37,7 @@ class _WeatherScreenState extends State<WeatherScreen> {
         if (body == '1') {
           setState(() {
             _isDanger = true;
-            _status = "Danger and heavy rainfall detected";
+            _status = "Alert Heavy rainfall is occurring upstream and may cause flash flooding. Stay alert.";
             _isLoading = false;
           });
         } else {
@@ -45,7 +45,7 @@ class _WeatherScreenState extends State<WeatherScreen> {
            // Ideally we should check strictly for '0', but basic fallback is safer.
           setState(() {
             _isDanger = false;
-            _status = "Danger free no heavy rainfall detected";
+            _status = "Clear Weather";
             _isLoading = false;
           });
         }

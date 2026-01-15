@@ -44,3 +44,4 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 /arcgis_maps_core
+/smart-flood-guard-web-app

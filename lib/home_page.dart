@@ -6,9 +6,50 @@ import 'package:sachi_app/screens/boulders_screen.dart';
 import 'package:sachi_app/screens/relief_map_screen.dart';
 import 'package:sachi_app/screens/weather_screen.dart';
 import 'package:sachi_app/screens/water_level_page.dart';
+import 'package:sachi_app/services/help_service.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
+
+  Future<void> _sendHelpRequest(BuildContext context) async {
+    // Show loading indicator
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(child: CircularProgressIndicator()),
+    );
+
+    final helpService = HelpService();
+    final error = await helpService.sendHelpRequest();
+
+    // Close loading indicator
+    if (context.mounted) Navigator.pop(context);
+
+    if (context.mounted) {
+      if (error == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Help request sent! Coordinates sent to rescue team.'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } else {
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Error'),
+            content: Text(error),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('OK'),
+              ),
+            ],
+          ),
+        );
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -37,14 +78,8 @@ class HomePage extends StatelessWidget {
                       IconButton(
                         icon: const Icon(Icons.help_outline, color: Color(0xFF3F51B5), size: 32),
                         onPressed: () {
-                          // TODO: Implement Help
-                          showDialog(
-                            context: context,
-                            builder: (context) => const AlertDialog(
-                              title: Text("Help"),
-                              content: Text("Help and Support information will go here."),
-                            ),
-                          );
+                          // Implement Help
+                          _sendHelpRequest(context);
                         },
                       ),
                       const Text(
@@ -68,38 +103,38 @@ class HomePage extends StatelessWidget {
                     _buildMenuButton(
                       context,
                       "Weather",
-                      Icons.cloud,
-                      const WeatherScreen(),
+                      imagePath: "assets/images/Weather.jpg",
+                      page: const WeatherScreen(),
+                    ),
+                    _buildMenuButton(
+                      context,
+                      "Risk Zones", // Right Column
+                      imagePath: "assets/images/risk_zones.jpg",
+                      page: const RiskZonesPage(),
                     ),
                     _buildMenuButton(
                       context,
                       "Water Level",
-                      Icons.water,
-                      const WaterLevelPage(),
+                      imagePath: "assets/images/Water_Level.jpg",
+                      page: const WaterLevelPage(),
                     ),
                     _buildMenuButton(
                       context,
-                      "Risk Zones",
-                      Icons.warning_amber,
-                      const RiskZonesPage(),
-                    ),
-                    _buildMenuButton(
-                      context,
-                      "Hydro Layers",
-                      Icons.layers,
-                      const HydroLayersPage(),
-                    ),
-                    _buildMenuButton(
-                      context,
-                      "Relief Sites",
-                      Icons.health_and_safety,
-                      const ReliefMapScreen(), 
+                      "Hydro Layers", // Right Column
+                      imagePath: "assets/images/hydro_layer.jpg",
+                      page: const HydroLayersPage(),
                     ),
                     _buildMenuButton(
                       context,
                       "Boulders movement",
-                      Icons.terrain,
-                      const BouldersScreen(),
+                      imagePath: "assets/images/Boulder.jpg",
+                      page: const BouldersScreen(),
+                    ),
+                    _buildMenuButton(
+                      context,
+                      "Relief Sites", // Right Column
+                      imagePath: "assets/images/relif_sites.jpg",
+                      page: const ReliefMapScreen(), 
                     ),
                   ],
                 ),
@@ -111,7 +146,7 @@ class HomePage extends StatelessWidget {
     );
   }
 
-  Widget _buildMenuButton(BuildContext context, String label, IconData icon, Widget page) {
+  Widget _buildMenuButton(BuildContext context, String label, {IconData? icon, String? imagePath, required Widget page}) {
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.center, // Ensure text is centered
@@ -139,11 +174,21 @@ class HomePage extends StatelessWidget {
                   ],
                 ),
                 child: Center(
-                  child: Icon(
-                    icon,
-                    size: 48, 
-                    color: Colors.white,
-                  ),
+                  child: imagePath != null 
+                    ? ClipRRect(
+                        borderRadius: BorderRadius.circular(20),
+                        child: Image.asset(
+                          imagePath,
+                          fit: BoxFit.cover,
+                          width: double.infinity,
+                          height: double.infinity,
+                        ),
+                      )
+                    : Icon(
+                        icon,
+                        size: 48, 
+                        color: Colors.white,
+                      ),
                 ),
               ),
             ),

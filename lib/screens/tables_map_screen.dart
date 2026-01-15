@@ -160,10 +160,10 @@ class _TablesMapScreenState extends State<TablesMapScreen> {
             },
           ),
 
-          // 2. Top-Left Controls
+          // 2. Bottom-Right Controls (Home & Locate)
           Positioned(
-            top: 50, // Account for status bar
-            left: 20,
+            bottom: 100,
+            right: 20,
             child: Column(
               children: [
                 // Home Button
@@ -196,32 +196,44 @@ class _TablesMapScreenState extends State<TablesMapScreen> {
                 // Toggle Layer List Drawer/Modal
                 showModalBottomSheet(
                   context: context, 
-                  builder: (ctx) => Container(
-                    padding: const EdgeInsets.all(16),
-                    height: 300,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text("Layer List", style: Theme.of(context).textTheme.headlineSmall),
-                        const Divider(),
-                        // Add actual layer toggle logic here if we can access the layers from the map
-                        Expanded(
-                          child: ListView(
-                            children: const [
-                              ListTile(
-                                leading: Icon(Icons.check_box),
-                                title: Text("Tables Layer (Default)"),
-                              ),
-                              ListTile(
-                                leading: Icon(Icons.check_box_outline_blank),
-                                title: Text("Other Layers..."),
-                              ),
+                  builder: (ctx) {
+                    final layers = _mapViewController?.arcGISMap?.operationalLayers ?? [];
+                    return StatefulBuilder(
+                      builder: (BuildContext context, StateSetter setModalState) {
+                        return Container(
+                          padding: const EdgeInsets.all(16),
+                          height: 300,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text("Layer List", style: Theme.of(context).textTheme.headlineSmall),
+                              const Divider(),
+                              Expanded(
+                                child: layers.isEmpty 
+                                  ? const Center(child: Text("No layers found."))
+                                  : ListView.builder(
+                                      itemCount: layers.length,
+                                      itemBuilder: (context, index) {
+                                        final layer = layers[index];
+                                        return CheckboxListTile(
+                                          title: Text(layer.name.isNotEmpty ? layer.name : "Layer $index"),
+                                          value: layer.isVisible,
+                                          onChanged: (bool? value) {
+                                            setModalState(() {
+                                              layer.isVisible = value ?? true;
+                                            });
+                                            setState(() {}); 
+                                          },
+                                        );
+                                      },
+                                    ),
+                              )
                             ],
                           ),
-                        )
-                      ],
-                    ),
-                  )
+                        );
+                      }
+                    );
+                  }
                 );
               },
               child: const Icon(Icons.layers),
@@ -231,7 +243,7 @@ class _TablesMapScreenState extends State<TablesMapScreen> {
           // Back Button
           Positioned(
             top: 50,
-            left: 80, 
+            left: 20, 
             child: FloatingActionButton.small(
                heroTag: "back_btn_tables",
                backgroundColor: Colors.white,

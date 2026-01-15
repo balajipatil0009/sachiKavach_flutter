@@ -37,14 +37,14 @@ class _BouldersScreenState extends State<BouldersScreen> {
         if (body == '1') {
           setState(() {
             _isDanger = true;
-            _status = "Boulders movement detected be safe";
+            _status = "Alert: Movement of boulders has been detected. Avoid approaching the riverbank.";
             _isLoading = false;
           });
         } else {
           // 0 or other values
           setState(() {
             _isDanger = false;
-            _status = "No Boulders movement detected";
+            _status = "No Movement Detected. ";
             _isLoading = false;
           });
         }
@@ -110,14 +110,14 @@ class _BouldersScreenState extends State<BouldersScreen> {
                   ),
                   textAlign: TextAlign.center,
                 ),
-                const SizedBox(height: 20),
-                Text(
-                  _isDanger
-                      ? "Immediate caution advised in rocky areas."
-                      : "Area appears stable.",
-                  style: const TextStyle(fontSize: 16),
-                  textAlign: TextAlign.center,
-                ),
+                // const SizedBox(height: 20),
+                // Text(
+                //   _isDanger
+                //       ? "Immediate caution advised in rocky areas."
+                //       : "Area appears stable.",
+                //   style: const TextStyle(fontSize: 16),
+                //   textAlign: TextAlign.center,
+                // ),
                 const SizedBox(height: 40),
                 ElevatedButton.icon(
                   onPressed: _fetchStatus,

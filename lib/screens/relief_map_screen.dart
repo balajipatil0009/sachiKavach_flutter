@@ -116,6 +116,79 @@ class _ReliefMapScreenState extends State<ReliefMapScreen> {
     }
   }
 
+  void _scanLayerRecursive(Layer layer, int depth) {
+      final indent = "  " * depth;
+      debugPrint("$indent LAYER: ${layer.name} (${layer.runtimeType})");
+      debugPrint("$indent   INFO: $layer");
+      
+      if (layer is GroupLayer) {
+          debugPrint("$indent   GROUP: Scanning ${layer.layers.length} children...");
+          for (final subLayer in layer.layers) {
+              _scanLayerRecursive(subLayer, depth + 1);
+          }
+      } else if (layer is FeatureLayer) {
+          if (layer.featureTable is ServiceFeatureTable) {
+              final table = layer.featureTable as ServiceFeatureTable;
+              debugPrint("$indent   FOUND URL: ${table.uri}");
+          }
+      } else if (layer is ServiceImageTiledLayer) {
+           debugPrint("$indent   FOUND INFO: $layer");
+           // Valid for manual observation if URL is in string
+      } else if (layer is ArcGISMapImageLayer) {
+           debugPrint("$indent   FOUND URL: ${layer.uri}");
+      }
+  }
+
+  Future<void> _handleTap(Offset screenPoint) async {
+    if (_mapViewController == null) return;
+
+    // Identify features at the tapped location
+    final identifyResults = await _mapViewController!.identifyLayers(
+      screenPoint: screenPoint,
+      tolerance: 12.0,
+      returnPopupsOnly: false,
+    );
+
+    if (identifyResults.isEmpty) return;
+
+    for (final result in identifyResults) {
+      for (final element in result.geoElements) {
+         // Check for "Name" attribute or similar common name fields case-insensitively
+         final attributes = element.attributes;
+         String? name;
+         
+         // Try finding 'Name', 'name', 'NAME' etc.
+         for (final key in attributes.keys) {
+           if (key.toLowerCase() == 'name') {
+             name = attributes[key]?.toString();
+             break;
+           }
+         }
+
+         if (name != null && name.isNotEmpty) {
+           if (mounted) _showPopup(name);
+           return; // Show only the first match
+         }
+      }
+    }
+  }
+
+  void _showPopup(String name) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Relief Site"),
+        content: Text("Name: $name"),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("OK"),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -127,6 +200,8 @@ class _ReliefMapScreenState extends State<ReliefMapScreen> {
               _mapViewController = ArcGISMapView.createController();
               return _mapViewController!;
             },
+            onTap: _handleTap, 
+            
             onMapViewReady: () {
                final map = ArcGISService.getReliefMap();
                _mapViewController?.arcGISMap = map;
@@ -134,15 +209,22 @@ class _ReliefMapScreenState extends State<ReliefMapScreen> {
 
                map.load().then((_) {
                  if (mounted && map.loadStatus == LoadStatus.loaded) {
+                   // DEBUG SCANNER: Check EVERYTHING for the URL via Recursion
+                   debugPrint("--- RELIEF MAP LAYER SCAN (RECURSIVE) ---");
+                   for (final layer in map.operationalLayers) {
+                      _scanLayerRecursive(layer, 0);
+                   }
+                   debugPrint("--- END SCAN ---");
+
                    if (map.initialViewpoint != null) {
                       _mapViewController?.setViewpoint(map.initialViewpoint!);
                    } else if (map.operationalLayers.isNotEmpty) {
-                     final layer = map.operationalLayers.first;
-                     layer.load().then((_) {
-                        if (layer.fullExtent != null) {
-                           _mapViewController?.setViewpointGeometry(layer.fullExtent!);
-                        }
-                     });
+                      final layer = map.operationalLayers.first;
+                      layer.load().then((_) {
+                         if (layer.fullExtent != null) {
+                            _mapViewController?.setViewpointGeometry(layer.fullExtent!);
+                         }
+                      });
                    }
                  } else if (map.loadStatus == LoadStatus.failedToLoad) {
                    if (mounted) {
@@ -155,10 +237,10 @@ class _ReliefMapScreenState extends State<ReliefMapScreen> {
             },
           ),
 
-          // 2. Top-Left Controls
+          // 2. Bottom-Right Controls (Home & Locate)
           Positioned(
-            top: 50, // Account for status bar
-            left: 20,
+            bottom: 100,
+            right: 20,
             child: Column(
               children: [
                 // Home Button
@@ -191,31 +273,45 @@ class _ReliefMapScreenState extends State<ReliefMapScreen> {
                 // Toggle Layer List Drawer/Modal
                 showModalBottomSheet(
                   context: context, 
-                  builder: (ctx) => Container(
-                    padding: const EdgeInsets.all(16),
-                    height: 300,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text("Layer List", style: Theme.of(context).textTheme.headlineSmall),
-                        const Divider(),
-                        Expanded(
-                          child: ListView(
-                            children: const [
-                              ListTile(
-                                leading: Icon(Icons.check_box),
-                                title: Text("Relief Layer (Default)"),
-                              ),
-                              ListTile(
-                                leading: Icon(Icons.check_box_outline_blank),
-                                title: Text("Other Layers..."),
-                              ),
+                  builder: (ctx) {
+                    final layers = _mapViewController?.arcGISMap?.operationalLayers ?? [];
+                    return StatefulBuilder(
+                      builder: (BuildContext context, StateSetter setModalState) {
+                        return Container(
+                          padding: const EdgeInsets.all(16),
+                          height: 300,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text("Layer List", style: Theme.of(context).textTheme.headlineSmall),
+                              const Divider(),
+                              Expanded(
+                                child: layers.isEmpty 
+                                  ? const Center(child: Text("No layers found."))
+                                  : ListView.builder(
+                                      itemCount: layers.length,
+                                      itemBuilder: (context, index) {
+                                        final layer = layers[index];
+                                        return CheckboxListTile(
+                                          title: Text(layer.name.isNotEmpty ? layer.name : "Layer $index"),
+                                          value: layer.isVisible,
+                                          onChanged: (bool? value) {
+                                            setModalState(() {
+                                              layer.isVisible = value ?? true;
+                                            });
+                                            // Force map update if needed, though property binding should handle it
+                                            setState(() {}); 
+                                          },
+                                        );
+                                      },
+                                    ),
+                              )
                             ],
                           ),
-                        )
-                      ],
-                    ),
-                  )
+                        );
+                      }
+                    );
+                  }
                 );
               },
               child: const Icon(Icons.layers),
@@ -225,7 +321,7 @@ class _ReliefMapScreenState extends State<ReliefMapScreen> {
           // Back Button
           Positioned(
             top: 50,
-            left: 80, 
+            left: 20, 
             child: FloatingActionButton.small(
                heroTag: "relief_back_btn",
                backgroundColor: Colors.white,

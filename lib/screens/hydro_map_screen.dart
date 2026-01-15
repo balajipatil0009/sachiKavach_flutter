@@ -1,3 +1,4 @@
+
 import 'package:flutter/material.dart';
 import 'package:arcgis_maps/arcgis_maps.dart';
 import 'package:geolocator/geolocator.dart';
@@ -23,30 +24,18 @@ class _HydroMapScreenState extends State<HydroMapScreen> {
   @override
   void initState() {
     super.initState();
-    // Initialize with Hydro API Key explicitly
+    // Initialize with Hydro API Key
     ArcGISService.initializeHydro();
   }
 
-  /// Handles the "Home" button press - resets viewpoint to default or initial
+  /// Handles the "Home" button press
   void _onHomePressed() {
-    // If the map has an initial viewpoint, we can try to reset to it
-    // Or just let the map be. For a WebMap, it usually has a stored initial state.
-    // We can just re-load the map or, if we captured an initial viewpoint, go there.
-    // For simplicity with Web Maps that have defined extents:
-    // We could capture the initial viewpoint on load, OR just reloading the map is a blunt but effective reset.
-    // However, a smoother way is resetting to the map's initial viewpoint if accessible.
-    // Let's assume the Web Map's default view is what we want.
     final map = _mapViewController?.arcGISMap;
     if (map != null) {
-        // There isn't a direct "reset" on the controller to the map's default.
-        // But we can try to zoom to the map's initial viewpoint.
-        // If not set, we can just zoom out to a default extent.
-        // For now, let's just log or try to re-apply the map item which might reset it.
-        // A better approach for "Home":
         if (map.initialViewpoint != null) {
           _mapViewController?.setViewpoint(map.initialViewpoint!);
         } else {
-             // Fallback: World extent or similar
+             // Fallback
         }
     }
   }
@@ -133,10 +122,6 @@ class _HydroMapScreenState extends State<HydroMapScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // We can use an AppBar or just have a fullscreen map with creating floating buttons.
-      // User asked for "Top-Left Controls (Floating Column)".
-      // So no AppBar or transparent AppBar might be best, but let's stick to standard Scaffold body for map
-      // and use Stack for floating controls.
       body: Stack(
         children: [
           // 1. Full-screen Map View
@@ -146,24 +131,44 @@ class _HydroMapScreenState extends State<HydroMapScreen> {
               return _mapViewController!;
             },
             onMapViewReady: () {
+               // 1. Get the Map from Service (Loads via Portal Item ID)
                final map = ArcGISService.getHydroMap();
                _mapViewController?.arcGISMap = map;
                _mapViewController?.graphicsOverlays.add(_locationOverlay);
 
-               // Explicitly load the map to ensure we can access its properties
+               // 2. Handling Layers (as per Algorithm)
+               // "In Flutter, you often listen to the load status or await the load"
                map.load().then((_) {
                  if (mounted && map.loadStatus == LoadStatus.loaded) {
-                   // If the map has a saved initial viewpoint, apply it
-                   if (map.initialViewpoint != null) {
+                   // Access operational layers and ensure visibility
+                   for (var layer in map.operationalLayers) {
+                      debugPrint("Layer: ${layer.name}");
+                      layer.isVisible = true; // Algorithm Step 4: Force Visibility
+                   }
+
+                   // Zoom Logic (aligned with Algorithm Step 2/3 implication of map usage)
+                   // If the Web Map has an initial viewpoint, the view usually respects it automatically
+                   // when set to the controller. However, explicit setting is often safer in Flutter SDK.
+                  // Zoom Strategy: Priority to Layer Content
+                  if (map.operationalLayers.isNotEmpty) {
+                      debugPrint("HydroMap: Found layers. Prioritizing Layer Zoom over Map Viewpoint.");
+                      final layer = map.operationalLayers.first;
+                      
+                      layer.load().then((_) {
+                         debugPrint("HydroMap: Layer '${layer.name}' loaded. Status: ${layer.loadStatus}");
+                         
+                         if (mounted && layer.fullExtent != null) {
+                            debugPrint("HydroMap: Zooming to '${layer.name}' extent: ${layer.fullExtent}");
+                            _mapViewController?.setViewpointGeometry(layer.fullExtent!);
+                         } else {
+                            debugPrint("HydroMap: Layer fullExtent is null. Falling back to map viewpoint.");
+                             if (map.initialViewpoint != null) {
+                                _mapViewController?.setViewpoint(map.initialViewpoint!);
+                             }
+                         }
+                      });
+                   } else if (map.initialViewpoint != null) {
                       _mapViewController?.setViewpoint(map.initialViewpoint!);
-                   } else if (map.operationalLayers.isNotEmpty) {
-                     // Fallback: Try to zoom to the first layer if no initial viewpoint
-                     final layer = map.operationalLayers.first;
-                     layer.load().then((_) {
-                        if (layer.fullExtent != null) {
-                           _mapViewController?.setViewpointGeometry(layer.fullExtent!);
-                        }
-                     });
                    }
                  } else if (map.loadStatus == LoadStatus.failedToLoad) {
                    if (mounted) {
@@ -176,29 +181,27 @@ class _HydroMapScreenState extends State<HydroMapScreen> {
             },
           ),
 
-          // 2. Top-Left Controls
+          // 2. Bottom-Right Controls (Home & Locate)
           Positioned(
-            top: 50, // Account for status bar
-            left: 20,
+            bottom: 100,
+            right: 20,
             child: Column(
               children: [
                 // Home Button
                 FloatingActionButton.small(
-                  heroTag: "home_btn",
+                  heroTag: "home_btn_hydro",
                   onPressed: _onHomePressed,
                   child: const Icon(Icons.home),
                 ),
                 const SizedBox(height: 10),
                 // Locate Button
                 FloatingActionButton.small(
-                  heroTag: "locate_btn",
+                  heroTag: "locate_btn_hydro",
                   onPressed: _onLocatePressed,
                   backgroundColor: _isLocating ? Colors.grey[300] : null,
                   child: _isLocating 
                       ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)) 
-                      : const Icon(Icons.my_location, color: Colors.blue), // Blue icon as requested somewhat (icon itself or button)
-                      // User said "Use a blue circle icon to match the React simple-marker style" - this usually means the graphic on map
-                      // But the button itself can also be indicative.
+                      : const Icon(Icons.my_location, color: Colors.blue),
                 ),
               ],
             ),
@@ -209,49 +212,61 @@ class _HydroMapScreenState extends State<HydroMapScreen> {
             top: 50,
             right: 20,
             child: FloatingActionButton.small(
-              heroTag: "layer_list_btn",
+              heroTag: "layer_list_btn_hydro",
               onPressed: () {
                 // Toggle Layer List Drawer/Modal
                 showModalBottomSheet(
                   context: context, 
-                  builder: (ctx) => Container(
-                    padding: const EdgeInsets.all(16),
-                    height: 300,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text("Layer List", style: Theme.of(context).textTheme.headlineSmall),
-                        const Divider(),
-                        // Add actual layer toggle logic here if we can access the layers from the map
-                        Expanded(
-                          child: ListView(
-                            children: const [
-                              ListTile(
-                                leading: Icon(Icons.check_box),
-                                title: Text("Hydro Layer (Default)"),
-                              ),
-                              ListTile(
-                                leading: Icon(Icons.check_box_outline_blank),
-                                title: Text("Other Layers..."),
-                              ),
+                  builder: (ctx) {
+                    final layers = _mapViewController?.arcGISMap?.operationalLayers ?? [];
+                    return StatefulBuilder(
+                      builder: (BuildContext context, StateSetter setModalState) {
+                        return Container(
+                          padding: const EdgeInsets.all(16),
+                          height: 300,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text("Layer List", style: Theme.of(context).textTheme.headlineSmall),
+                              const Divider(),
+                              Expanded(
+                                child: layers.isEmpty 
+                                  ? const Center(child: Text("No layers found."))
+                                  : ListView.builder(
+                                      itemCount: layers.length,
+                                      itemBuilder: (context, index) {
+                                        final layer = layers[index];
+                                        return CheckboxListTile(
+                                          title: Text(layer.name.isNotEmpty ? layer.name : "Layer $index"),
+                                          value: layer.isVisible,
+                                          onChanged: (bool? value) {
+                                            setModalState(() {
+                                              layer.isVisible = value ?? true;
+                                            });
+                                            setState(() {}); 
+                                          },
+                                        );
+                                      },
+                                    ),
+                              )
                             ],
                           ),
-                        )
-                      ],
-                    ),
-                  )
+                        );
+                      }
+                    );
+                  }
                 );
               },
               child: const Icon(Icons.layers),
             ),
           ),
           
-          // Back Button (Optional but good for sub-pages)
+          // Back Button
           Positioned(
             top: 50,
-            left: 80, // Next to the column
+            left: 20, 
             child: FloatingActionButton.small(
-               heroTag: "back_btn",
+               heroTag: "back_btn_hydro",
                backgroundColor: Colors.white,
                onPressed: () => Navigator.pop(context),
                child: const Icon(Icons.arrow_back, color: Colors.black),

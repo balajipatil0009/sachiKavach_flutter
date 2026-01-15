@@ -68,10 +68,10 @@ class _WaterLevelPageState extends State<WaterLevelPage> {
     int l2 = _levels['level2'] ?? 0;
     int l3 = _levels['level3'] ?? 0;
     
-    if (l3 == 1) return "CRITICAL WARNING: LEVEL 3 BREACHED";
-    if (l2 == 1) return "WARNING: LEVEL 2 BREACHED";
-    if (l1 == 1) return "ALERT: LEVEL 1 BREACHED";
-    return "NORMAL LEVELS";
+    if (l3 == 1) return "Water level at Zone 3 has breached the risk level.";
+    if (l2 == 1) return "Water level at Zone 2 has breached the risk level.";
+    if (l1 == 1) return "Water level at Zone 1 has breached the risk level.";
+    return "NO Danger Detected";
   }
 
   @override
@@ -118,9 +118,9 @@ class _WaterLevelPageState extends State<WaterLevelPage> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                       children: [
-                        _buildLevelIndicator("Level 3 (Highest)", 3),
-                        _buildLevelIndicator("Level 2 (Medium)", 2),
-                        _buildLevelIndicator("Level 1 (Lowest)", 1),
+                        _buildLevelIndicator("Zone 3 at Danger", 3),
+                        _buildLevelIndicator("Zone 2 at Danger", 2),
+                        _buildLevelIndicator("Zone 1 at Danger", 1),
                       ],
                     ),
                   ),

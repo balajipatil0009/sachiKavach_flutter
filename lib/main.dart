@@ -3,9 +3,13 @@ import 'package:sachi_app/home_page.dart';
 
 import 'package:sachi_app/services/arcgis_service.dart';
 
-void main() {
+import 'package:firebase_core/firebase_core.dart';
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
   // Initialize ArcGIS with API Key globally
   ArcGISService.initialize();
+  await Firebase.initializeApp();
   runApp(const MyApp());
 }
 

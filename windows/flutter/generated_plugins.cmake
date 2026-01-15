@@ -4,7 +4,9 @@
 
 list(APPEND FLUTTER_PLUGIN_LIST
   arcgis_maps
+  cloud_firestore
   desktop_webview_window
+  firebase_core
   flutter_secure_storage_windows
   geolocator_windows
   permission_handler_windows
