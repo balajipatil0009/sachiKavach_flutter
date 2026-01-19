@@ -7,11 +7,16 @@ import 'package:sachi_app/screens/onboarding_screen.dart';
 
 import 'package:firebase_core/firebase_core.dart';
 
+import 'package:sachi_app/services/notification_service.dart';
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   // Initialize ArcGIS with API Key globally
   ArcGISService.initialize();
   await Firebase.initializeApp();
+  
+  // Initialize Notifications
+  await NotificationService.initialize();
 
   final prefs = await SharedPreferences.getInstance();
   final hasUser = prefs.containsKey('user_name') && prefs.containsKey('user_email');
